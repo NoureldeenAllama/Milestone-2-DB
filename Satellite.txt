@@ -1,0 +1,50 @@
+import requests
+from bs4 import BeautifulSoup
+import csv
+import re
+
+def scrape_and_save_satellite_data(urls, output_file):
+    try:
+        with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['Longitude', 'Satellite Name', 'Frequency', 'ID', 'Region'])
+            for url, region in urls:
+                response = requests.get(url)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                    tables = [table for table in soup.find_all('table') if not is_excluded_table(table)]
+                    for table in tables:
+                        satellite_rows = table.find_all('tr')
+                        for row in satellite_rows:
+                            tds = row.find_all('td')
+                            if len(tds) >= 4:
+                                longitude = tds[0].text.strip()
+                                satellite_name = tds[1].text.strip()
+                                frequency = tds[2].text.strip()
+                                ID = tds[3].text.strip()
+                                writer.writerow([longitude, satellite_name, frequency, ID, region])
+                else:
+                    print("Failed to fetch data from URL:", url)
+    except Exception as e:
+        print("An error occurred:", e)
+
+def is_excluded_table(table):
+    legend_table = table.find('td', string='Colour legend:')
+    return legend_table is not None
+
+def extract_region(url):
+    pattern = r'\((.*?)\)'  
+    match = re.search(pattern, url)
+    if match:
+        return match.group(1)
+    else:
+        return None
+
+test_urls = [
+     ("https://www.lyngsat.com/europe.html", "Europe"),  # Replace with your URLs and regions
+    ("https://www.lyngsat.com/atlantic.html", "Atlantic"),
+    ("https://www.lyngsat.com/asia.html", "Asia"),
+    ("https://www.lyngsat.com/america.html", "America"),
+]
+output_csv = "Satellites.csv"
+scrape_and_save_satellite_data(test_urls, output_csv)

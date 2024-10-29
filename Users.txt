@@ -1,0 +1,36 @@
+from faker import Faker
+import random
+import csv
+
+def generate_fake_users(num_users, output_file):
+
+    faker = Faker()
+    
+    data = []
+    for _ in range(num_users):
+        email = faker.email()
+        username = faker.user_name()
+        location = faker.address()
+        region = random.choice(['Asia', 'Europe', 'America', 'Atlantic'])
+        gender = random.choice(['Male', 'Female'])
+        birthdate = faker.date_of_birth(minimum_age=12, maximum_age=60).strftime('%Y-%m-%d')
+
+        person_data = {
+            'Email': email,
+            'Username': username,
+            'Location': location,
+            'Region': region,
+            'Gender': gender,
+            'Birthdate': birthdate
+        }
+        data.append(person_data)
+
+    with open(output_file, 'w', newline='') as csvfile:
+        fieldnames = ['Email', 'Username', 'Location', 'Region', 'Gender', 'Birthdate']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        
+        writer.writeheader()
+        for person in data:
+            writer.writerow(person)
+
+generate_fake_users(30, 'Users.csv')

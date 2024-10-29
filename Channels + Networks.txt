@@ -1,0 +1,117 @@
+import requests
+from bs4 import BeautifulSoup
+import csv
+import re
+
+def scrape_channels(satellite_url, output_file, existing_channels):
+    try:
+        response = requests.get(satellite_url)
+
+        if response.status_code != 200:
+
+            print(f"Failed to fetch {satellite_url} page")
+
+            return
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        channel_links = soup.find_all("a", href=re.compile("tvchannels"))
+
+        for channel_link in channel_links:
+
+            response2 = requests.get(channel_link['href'])
+
+            soup2 = BeautifulSoup(response2.content, 'html.parser')
+
+            channel_name_element = soup2.find("font", {"size": "5"})
+
+            if channel_name_element:
+
+                channel_name = channel_name_element.text.strip()
+
+                if channel_name in existing_channels:
+
+                    print(f"Skipping duplicate channel: {channel_name}")
+
+                    continue
+
+                existing_channels.add(channel_name)
+            else:
+                print("Channel name not found")
+                continue
+
+            channel_table = soup2.find("table", {"width": "700", "border": "1"})
+            if channel_table:
+                rows = channel_table.find_all('tr')[2:-1]  # Skip the first two and the last one
+                for row in rows:
+                    tds = row.find_all('td')[1:9]
+                    if tds and tds[0].text.strip() != "LyngSat Stream":
+                        td_texts = [td.text.strip() for td in tds]
+                        fec = td_texts[4]
+                        symbol_rate = ""
+                        if '/' in fec:
+                            symbol_rate = fec[-3:]
+                            fec = fec[:-3].strip()
+                            td_texts[4] = fec
+                        td_texts.insert(5, symbol_rate)
+                        row_data = dict(zip(channel_columns, [channel_name] + td_texts))
+                        print("Scraping data for columns:", channel_columns)
+                        print(row_data)
+                        with open(output_file, 'a', newline='', encoding='utf-8') as f:
+                            writer = csv.DictWriter(f, fieldnames=channel_columns)
+                            writer.writerow(row_data)
+            else:
+                print(f"No channel table found for {channel_link['href']}")
+
+    except Exception as e:
+        print(f"An error occurred while scraping channels for {satellite_url}: {e}")
+
+def scrape_providers(satellite_url, output_file):
+    try:
+        response = requests.get(satellite_url)
+        if response.status_code != 200:
+            print(f"Failed to fetch {satellite_url} page")
+            return
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        provider_names = soup.find_all("a", href=re.compile("providers"))
+
+        for provider_name in provider_names:
+            provider = provider_name.text.strip()
+            print("Provider:", provider)
+            with open(output_file, 'a', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=provider_columns)
+                writer.writerow({'Provider': provider, 'Satellite': satellite_url})
+
+    except Exception as e:
+        print(f"An error occurred while scraping providers for {satellite_url}: {e}")
+
+def scrape_data_for_regions(regions, channel_output_file, provider_output_file):
+    existing_channels = set()  # To keep track of existing channels
+    for region in regions:
+        print(region)
+        response = requests.get(f"https://www.lyngsat.com/{region}.html")
+        soup = BeautifulSoup(response.content, 'html.parser')
+        td_tags = soup.find_all("td", {"width": "180"})
+
+        for td in td_tags:
+            a_tag = td.find("a")
+            if a_tag and 'href' in a_tag.attrs:
+                satellite_link = f"https://www.lyngsat.com/{a_tag['href']}"
+                print("Satellite Link:", satellite_link)
+                scrape_channels(satellite_link, channel_output_file, existing_channels)
+                scrape_providers(satellite_link, provider_output_file)
+                print("Scraping complete for:", satellite_link)  # Print after scraping each satellite
+
+regions = ["asia", "europe", "atlantic", "america"]
+
+channel_columns = ['Name', 'Satellite', 'Beam', 'Frequency', 'System', 'FEC', 'Symbol Rate', 'VideoEncoding', 'Language', 'Encryption']
+
+provider_columns = ['Provider', 'Satellite']
+
+filename_channels = 'Channels.csv'
+
+filename_providers = 'Networks.csv'
+
+
+scrape_data_for_regions(regions, filename_channels, filename_providers)

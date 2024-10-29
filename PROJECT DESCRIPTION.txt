@@ -1,0 +1,14 @@
+In this project, you will be building a database application to gather information about 
+TV-Broadcasting Satellites across Asia, Europe, Atlantic and America. This include the 
+carrier rockets used to put the satellites in orbit, their position, the information about the 
+channels they broadcast and the corresponding networks. This will help build a tool for 
+users to identify which satellites are in range for their location and what channels they 
+can pick up from them.
+
+The main site we will be using to provide such information is Lyngsat.com, Although the 
+site provides a very exhaustive list about the information above, it has limited 
+functionalities for filtering or doing some higher level aggregations on the different 
+satellites and their broadcasted channels and networks. Hence, your application will be 
+used to provide more flexibility on that front. 
+Your task will to build a database system backend and an application that provide the 
+features described next.
